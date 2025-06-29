@@ -168,6 +168,16 @@ function loadQuestionsFromStorage(): Question[] | null {
   }
 }
 
+// 配列シャッフル関数
+function shuffleArray<T>(array: T[]): T[] {
+  const arr = [...array]
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr
+}
+
 function App() {
   const [current, setCurrent] = useState(0)
   const [selected, setSelected] = useState<number[]>([])
@@ -215,6 +225,15 @@ function App() {
   const total = myQuestions.length
   const progress = ((current + (answered || finished ? 1 : 0)) / total) * 100
 
+  // 選択肢シャッフル用state
+  const [shuffledOptions, setShuffledOptions] = useState<number[]>([0,1,2,3])
+
+  // 問題切り替え時に選択肢をシャッフル
+  useEffect(() => {
+    setShuffledOptions(shuffleArray([0,1,2,3]))
+    setSelected([])
+  }, [current, myQuestions])
+
   const handleSelect = (idx: number) => {
     if (answered) return
     if (q.multi) {
@@ -232,11 +251,14 @@ function App() {
     audio.play()
   }
 
+  // 正解判定もシャッフル対応
   const handleSubmit = () => {
     if (answered) return
+    // シャッフル後のindexを元のindexに変換
+    const selectedOriginal = selected.map(idx => shuffledOptions[idx])
     const correct =
-      selected.length === q.correct.length &&
-      selected.every((v) => q.correct.includes(v))
+      selectedOriginal.length === q.correct.length &&
+      selectedOriginal.every((v) => q.correct.includes(v))
     setIsCorrect(correct)
     setAnswered(true)
     if (correct) setScore((prev) => prev + 1)
@@ -373,12 +395,12 @@ function App() {
         <p style={{ fontWeight: 'bold' }}>問題 {current + 1} / {total}</p>
         <p>{q.text}</p>
         <ul>
-          {q.options.map((opt, idx) => (
+          {shuffledOptions.map((optIdx, idx) => (
             <li key={idx}>
               <label style={{
-                fontWeight: answered && q.correct.includes(idx) ? 'bold' : 'normal',
+                fontWeight: answered && q.correct.includes(optIdx) ? 'bold' : 'normal',
                 color: answered
-                  ? q.correct.includes(idx)
+                  ? q.correct.includes(optIdx)
                     ? 'green'
                     : selected.includes(idx)
                     ? 'red'
@@ -392,7 +414,7 @@ function App() {
                   disabled={answered}
                   onChange={() => handleSelect(idx)}
                 />
-                {opt}
+                {q.options[optIdx]}
               </label>
             </li>
           ))}
